@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>T3r0S3c — {{ nombre }}</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@600;700&family=Inter:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #080c14;
+            --bg-card: #0d1420;
+            --border: #111827;
+            --green: #00ff88;
+            --cyan: #00d4ff;
+            --red: #ff3b5c;
+            --amber: #ffaa00;
+            --text: #e2e8f0;
+            --muted: #3d5166;
+            --secondary: #7a8fa6;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+
+        .logo-bracket {
+            color: var(--green);
+        }
+
+        .filename {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            color: var(--muted);
+            letter-spacing: 1px;
+        }
+
+        .btn-back {
+            background: transparent;
+            border: 1px solid var(--cyan);
+            color: var(--cyan);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            padding: 6px 16px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+        }
+
+        .btn-back:hover {
+            background: var(--cyan);
+            color: var(--bg);
+        }
+
+        .report-body {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 2rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        /* Estilos Markdown */
+        .report-body h1 {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--cyan);
+            letter-spacing: 2px;
+            margin-bottom: 1.5rem;
+            padding-bottom: .75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .report-body h2 {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            color: var(--text);
+            margin: 1.5rem 0 .75rem;
+        }
+
+        .report-body h2::before {
+            content: '// ';
+            color: var(--cyan);
+        }
+
+        .report-body h3 {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--secondary);
+            margin: 1rem 0 .5rem;
+        }
+
+        .report-body p {
+            font-size: 13px;
+            color: var(--secondary);
+            line-height: 1.7;
+            margin-bottom: .75rem;
+        }
+
+        .report-body table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            margin: 1rem 0;
+        }
+
+        .report-body th {
+            background: #0a0f1a;
+            color: var(--muted);
+            padding: 8px 12px;
+            text-align: left;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .report-body td {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .report-body tr:hover td {
+            background: #0d1a2a;
+        }
+
+        .report-body td:nth-child(2) {
+            font-weight: 600;
+        }
+
+        /* Colorear severidades */
+        .report-body td:nth-child(2):has-text("CRITICA") {
+            color: var(--red);
+        }
+
+        .critica {
+            color: var(--red) !important;
+        }
+
+        .alta {
+            color: var(--amber) !important;
+        }
+
+        .media {
+            color: #4d9fff !important;
+        }
+
+        .report-body ul,
+        .report-body ol {
+            padding-left: 1.5rem;
+            margin-bottom: .75rem;
+        }
+
+        .report-body li {
+            font-size: 13px;
+            color: var(--secondary);
+            line-height: 1.8;
+        }
+
+        .report-body strong {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .report-body code {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            background: #0a0f1a;
+            color: var(--green);
+            padding: 2px 6px;
+            border: 1px solid var(--border);
+        }
+
+        .report-body hr {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 1.5rem 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <div>
+            <div class="logo">
+                <span class="logo-bracket">[</span>T3r0S3c<span class="logo-bracket">]</span>
+                <span
+                    style="font-size:12px;font-weight:400;color:var(--muted);letter-spacing:3px;margin-left:10px;">REPORTE
+                    DE SEGURIDAD</span>
+            </div>
+            <div class="filename" style="margin-top:4px;">{{ nombre }}</div>
+        </div>
+        <a href="/" class="btn-back">← VOLVER AL DASHBOARD</a>
+    </div>
+
+    <div class="report-body" id="reportBody">
+        {{ contenido }}
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <script>
+        // Renderizar Markdown
+        const body = document.getElementById('reportBody');
+        const raw = body.textContent;
+        body.innerHTML = marked.parse(raw);
+
+        // Colorear celdas de severidad
+        body.querySelectorAll('td').forEach(td => {
+            const txt = td.textContent.trim().toUpperCase();
+            if (txt === 'CRITICA' || txt === 'CRÍTICA') td.classList.add('critica');
+            else if (txt === 'ALTA') td.classList.add('alta');
+            else if (txt === 'MEDIA') td.classList.add('media');
+        });
+    </script>
+
+</body>
+
+</html>

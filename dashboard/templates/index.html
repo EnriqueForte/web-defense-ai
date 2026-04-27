@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>T3r0S3c — Web Defense AI</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+</head>
+
+<body>
+
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <span class="logo-bracket">[</span>T3r0S3c<span class="logo-bracket">]</span>
+                <span class="logo-tag">WEB DEFENSE AI</span>
+            </div>
+            <div class="status-bar">
+                <span class="status-dot"></span>
+                <span class="status-text">SISTEMA ACTIVO</span>
+                <span class="status-sep">|</span>
+                <span class="status-time">Ultimo analisis: {{ ultimo_ciclo }}</span>
+                <span class="status-sep">|</span>
+                <span class="status-time" id="cicloNum">Pipeline activo</span>
+            </div>
+        </div>
+        <button class="btn-scan" id="btnAnalizar" onclick="ejecutarAnalisis()">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" class="btn-icon">
+                <polygon points="2,1 9,5 2,9" />
+            </svg>
+            ANALIZAR AHORA
+        </button>
+    </header>
+
+    <section class="metrics-grid">
+        <div class="metric-card total">
+            <div class="metric-label">AMENAZAS TOTALES</div>
+            <div class="metric-value">{{ stats.total }}</div>
+            <div class="metric-sub">ultimo ciclo</div>
+            <div class="metric-ghost">{{ stats.total }}</div>
+            <div class="metric-card total" onclick="filtrarTabla('total')" style="cursor:pointer"></div>
+        </div>
+        <div class="metric-card critica">
+            <div class="metric-label">CRITICAS</div>
+            <div class="metric-value">{{ stats.criticas }}</div>
+            <div class="metric-sub">accion inmediata</div>
+            <div class="metric-ghost">{{ stats.criticas }}</div>
+            <div class="metric-card critica" onclick="filtrarTabla('critica')" style="cursor:pointer"></div>
+        </div>
+        <div class="metric-card alta">
+            <div class="metric-label">ALTAS</div>
+            <div class="metric-value">{{ stats.altas }}</div>
+            <div class="metric-sub">revisar hoy</div>
+            <div class="metric-ghost">{{ stats.altas }}</div>
+            <div class="metric-card alta" onclick="filtrarTabla('alta')" style="cursor:pointer"></div>
+        </div>
+        <div class="metric-card media">
+            <div class="metric-label">MEDIA</div>
+            <div class="metric-value">{{ stats.medias }}</div>
+            <div class="metric-sub">investigar</div>
+            <div class="metric-ghost">{{ stats.medias }}</div>
+            <div class="metric-card media" onclick="filtrarTabla('media')" style="cursor:pointer"></div>
+        </div>
+        <div class="metric-card ips">
+            <div class="metric-label">IPs ATACANTES</div>
+            <div class="metric-value">{{ stats.ips }}</div>
+            <div class="metric-sub">origen unico</div>
+            <div class="metric-ghost">{{ stats.ips }}</div>
+            <div class="metric-card ips" onclick="filtrarTabla('ips')" style="cursor:pointer"></div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="title-accent">//</span> AMENAZAS DETECTADAS
+            </h2>
+            <span class="section-count">{{ amenazas|length }} eventos</span>
+        </div>
+        <div class="table-wrapper">
+            <table class="threat-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>TIPO DE ATAQUE</th>
+                        <th>SEVERIDAD</th>
+                        <th>ESTADO</th>
+                        <th>IP ORIGEN</th>
+                        <th>DETECCION</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in amenazas %}
+                    <tr
+                        class="{% if 'CRITICA' in a.severidad.upper() or 'CRÍTICA' in a.severidad.upper() %}row-critica{% elif 'ALTA' in a.severidad.upper() %}row-alta{% else %}row-media{% endif %}">
+                        <td class="td-num">{{ a.numero }}</td>
+                        <td class="td-tipo">{{ a.tipo }}</td>
+                        <td>
+                            {% if 'CRITICA' in a.severidad.upper() or 'CRÍTICA' in a.severidad.upper() %}
+                            <span class="badge badge-critica">CRITICA</span>
+                            {% elif 'ALTA' in a.severidad.upper() %}
+                            <span class="badge badge-alta">ALTA</span>
+                            {% else %}
+                            <span class="badge badge-media">MEDIA</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if 'ACTIVO' in a.estado.upper() %}
+                            <span class="badge badge-activo">ACTIVO</span>
+                            {% else %}
+                            <span class="badge badge-investigar">INVESTIGAR</span>
+                            {% endif %}
+                        </td>
+                        <td class="td-ip">{{ a.ip }}</td>
+                        <td class="td-ts">{{ a.timestamp }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="td-empty">$ sin amenazas detectadas en el ultimo analisis_</td>
+                        <td class="td-ts">{{ a.timestamp }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- TIMELINE DE ATAQUES -->
+    <section class="section">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="title-accent">//</span> TIMELINE DE ATAQUES
+            </h2>
+            <span style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted);letter-spacing:1px;">
+                FRECUENCIA POR PATRON DETECTADO EN LOG
+            </span>
+            <span class="section-count" id="timelineCount">{{ timeline.horas|length }} periodos</span>
+        </div>
+        <div class="timeline-wrapper">
+            <div style="position:relative; width:100%; height:200px;">
+                <canvas id="timelineChart" role="img"
+                    aria-label="Grafico de ataques por hora mostrando SQLi, XSS y Path Traversal">
+                    Ataques detectados por hora: {{ timeline.counts }}
+                </canvas>
+            </div>
+        </div>
+    </section>
+
+    <div class="bottom-grid">
+        <section class="panel">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span class="title-accent">//</span> HISTORIAL DE REPORTES
+                </h2>
+            </div>
+            <div class="historial-list">
+                {% for item in historial %}
+                <a href="/report/{{ item.nombre }}" target="_blank" style="text-decoration:none">
+                    <div class="historial-item">
+                        <div class="historial-info">
+                            <span class="historial-nombre">{{ item.fecha }} {{ item.hora }}</span>
+                            <span class="historial-archivo">{{ item.nombre }}</span>
+                        </div>
+                        <span
+                            class="badge {% if item.amenazas > 5 %}badge-critica{% elif item.amenazas > 2 %}badge-alta{% else %}badge-media{% endif %}">
+                            {{ item.amenazas }} amenazas
+                        </span>
+                    </div>
+                </a>
+                {% else %}
+                <div class="empty-msg">$ sin historial disponible_</div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span class="title-accent">//</span> LOG EN TIEMPO REAL
+                    <span class="blink">&#9646;</span>
+                </h2>
+            </div>
+            <div class="log-terminal" id="logTerminal">
+                {% for linea in log_lines %}
+                <div
+                    class="log-line {% if 'sqli' in linea.lower() or 'union' in linea.lower() or 'passwd' in linea.lower() or 'script' in linea.lower() or '%3c' in linea.lower() %}log-alert{% endif %}">
+                    <span
+                        class="{% if 'sqli' in linea.lower() or 'passwd' in linea.lower() %}log-prompt-alert{% else %}log-prompt{% endif %}">
+                        {% if 'sqli' in linea.lower() or 'passwd' in linea.lower() %}!{% else %}${% endif %}
+                    </span>
+                    {{ linea }}
+                </div>
+                {% else %}
+                <div class="log-line"><span class="log-prompt">$</span> sin datos de log disponibles_</div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+
+    <footer class="footer">
+        <span class="footer-text">T3r0S3c Web Defense AI v2.0 &nbsp;|&nbsp; Pipeline activo &nbsp;|&nbsp; Proximo
+            refresco en</span>
+        <div class="footer-right">
+            <span class="footer-text" id="countDown">15s</span>
+            <div class="refresh-bar">
+                <div class="refresh-fill" id="refreshFill"></div>
+            </div>
+        </div>
+    </footer>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let countdown = 15;
+
+        // Contador regresivo en footer
+        function actualizarContador() {
+            countdown--;
+            const el = document.getElementById('countDown');
+            if (el) el.textContent = countdown + 's';
+            if (countdown <= 0) countdown = 15;
+        }
+
+        setInterval(actualizarContador, 1000);
+
+        // Actualizar log cada 15 segundos sin recargar
+        async function actualizarLog() {
+            try {
+                const res = await fetch('/api/estado');
+                const data = await res.json();
+
+                const terminal = document.getElementById('logTerminal');
+                if (terminal && data.log) {
+                    terminal.innerHTML = data.log.map(linea => {
+                        const esAlerta = /sqli|union|passwd|script|%3c|traversal/i.test(linea);
+                        const prompt = esAlerta ? '!' : '$';
+                        const cls = esAlerta ? 'log-alert' : '';
+                        const promptCls = esAlerta ? 'log-prompt-alert' : 'log-prompt';
+                        return `<div class="log-line ${cls}">
+                      <span class="${promptCls}">${prompt}</span>
+                      ${linea}
+                    </div>`;
+                    }).join('');
+                    terminal.scrollTop = terminal.scrollHeight;
+                }
+
+                const timeEl = document.querySelector('.status-time');
+                if (timeEl) timeEl.textContent = 'Ultimo refresco: ' + data.timestamp;
+
+                countdown = 15;
+
+            } catch (e) {
+                console.log('Error actualizando log:', e);
+            }
+        }
+
+        // Ejecutar analisis manual
+        async function ejecutarAnalisis() {
+            const btn = document.getElementById('btnAnalizar');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="btn-icon">&#8987;</span> ANALIZANDO...';
+            mostrarToast('Iniciando analisis con agentes de IA...', 'info');
+
+            try {
+                const res = await fetch('/api/sincronizar', { method: 'POST' });
+                const data = await res.json();
+                if (data.ok) {
+                    mostrarToast('Analisis completado. Recargando...', 'success');
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    mostrarToast('Error: ' + data.error, 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="2,1 9,5 2,9"/></svg> ANALIZAR AHORA';
+                }
+            } catch (e) {
+                mostrarToast('Error de conexion', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="2,1 9,5 2,9"/></svg> ANALIZAR AHORA';
+            }
+        }
+
+        function mostrarToast(msg, tipo) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = 'toast toast-' + tipo + ' toast-visible';
+            setTimeout(() => toast.className = 'toast', 3500);
+        }
+
+        // Arrancar
+        actualizarLog();
+        setInterval(actualizarLog, 15000);
+
+        const terminal = document.getElementById('logTerminal');
+        if (terminal) terminal.scrollTop = terminal.scrollHeight;
+
+        // ============================================================
+        // FILTRO POR METRICA AL HACER CLIC
+        // ============================================================
+        let filtroActivo = null;
+
+        function filtrarTabla(tipo) {
+            const filas = document.querySelectorAll('.threat-table tbody tr');
+
+            // Si el mismo filtro ya estaba activo, lo desactivamos
+            if (filtroActivo === tipo) {
+                filtroActivo = null;
+                filas.forEach(f => f.style.display = '');
+                document.querySelectorAll('.metric-card').forEach(m => {
+                    m.style.opacity = '1';
+                    m.style.cursor = 'pointer';
+                });
+                return;
+            }
+
+            filtroActivo = tipo;
+
+            // Dim todas las métricas excepto la activa
+            document.querySelectorAll('.metric-card').forEach(m => {
+                m.style.opacity = m.classList.contains(tipo) ? '1' : '0.35';
+            });
+
+            // Filtrar filas
+            filas.forEach(fila => {
+                const severidad = fila.querySelector('td:nth-child(3)')?.textContent.trim().toUpperCase() || '';
+                let mostrar = false;
+
+                if (tipo === 'total') mostrar = true;
+                if (tipo === 'critica') mostrar = severidad.includes('CRITICA') || severidad.includes('CRÍTICA');
+                if (tipo === 'alta') mostrar = severidad.includes('ALTA');
+                if (tipo === 'media') mostrar = severidad.includes('MEDIA');
+                if (tipo === 'ips') mostrar = true; // muestra todas pero resalta la IP
+
+                fila.style.display = mostrar ? '' : 'none';
+            });
+
+            // Actualizar contador de eventos
+            const visibles = [...filas].filter(f => f.style.display !== 'none').length;
+            const countEl = document.querySelector('.section-count');
+            if (countEl) {
+                countEl.textContent = visibles + ' eventos';
+                countEl.style.color = tipo !== 'total' ? 'var(--accent-cyan)' : '';
+            }
+
+            mostrarToast('Filtro: ' + tipo.toUpperCase() + ' (' + visibles + ' eventos)', 'info');
+        }
+    </script>
+
+    <script id="timeline-data" type="application/json">
+    {
+        "horas"  : {{ timeline.horas  | tojson }},
+        "counts" : {{ timeline.counts | tojson }},
+        "sqli"   : {{ timeline.sqli   | tojson }},
+        "xss"    : {{ timeline.xss    | tojson }},
+        "path"   : {{ timeline.path   | tojson }}
+    }
+    </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <script>
+
+        // ============================================================
+        // TIMELINE DE ATAQUES — Chart.js
+        // ============================================================
+
+
+        const timelineData = JSON.parse(
+            document.getElementById('timeline-data').textContent
+        );
+
+        function iniciarTimeline(data) {
+            const ctx = document.getElementById('timelineChart');
+            if (!ctx || !data.horas.length) return;
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.horas,
+                    datasets: [
+                        {
+                            label: 'SQLi',
+                            data: data.sqli,
+                            backgroundColor: 'rgba(255,170,0,0.7)',
+                            borderColor: 'rgba(255,170,0,1)',
+                            borderWidth: 1,
+                        },
+                        {
+                            label: 'XSS',
+                            data: data.xss,
+                            backgroundColor: 'rgba(77,159,255,0.7)',
+                            borderColor: 'rgba(77,159,255,1)',
+                            borderWidth: 1,
+                        },
+                        {
+                            label: 'Path Traversal',
+                            data: data.path,
+                            backgroundColor: 'rgba(255,59,92,0.7)',
+                            borderColor: 'rgba(255,59,92,1)',
+                            borderWidth: 1,
+                        },
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#0d1420',
+                            borderColor: '#1a2535',
+                            borderWidth: 1,
+                            titleColor: '#e2e8f0',
+                            bodyColor: '#7a8fa6',
+                            padding: 10,
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            ticks: { color: '#2a3f5a', font: { family: 'Share Tech Mono', size: 10 }, maxRotation: 45, autoSkip: false },
+                            grid: { color: '#111827' },
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            ticks: { color: '#2a3f5a', font: { family: 'Share Tech Mono', size: 10 }, stepSize: 1 },
+                            grid: { color: '#111827' },
+                        }
+                    }
+                }
+            });
+        }
+
+        iniciarTimeline(timelineData);
+
+        // Leyenda custom
+        const legendHtml = `
+    <div style="display:flex;gap:16px;margin-top:8px;padding:0 4px">
+      <span style="display:flex;align-items:center;gap:5px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2a3f5a">
+        <span style="width:10px;height:10px;background:rgba(255,170,0,0.7);display:inline-block"></span>SQLi
+      </span>
+      <span style="display:flex;align-items:center;gap:5px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2a3f5a">
+        <span style="width:10px;height:10px;background:rgba(77,159,255,0.7);display:inline-block"></span>XSS
+      </span>
+      <span style="display:flex;align-items:center;gap:5px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2a3f5a">
+        <span style="width:10px;height:10px;background:rgba(255,59,92,0.7);display:inline-block"></span>Path Traversal
+      </span>
+    </div>`;
+
+        const wrapper = document.querySelector('.timeline-wrapper');
+        if (wrapper) wrapper.insertAdjacentHTML('beforeend', legendHtml);
+
+        // Actualizar timeline via API cada 15s
+        const originalActualizarLog = actualizarLog;
+        async function actualizarLog() {
+            await originalActualizarLog();
+            try {
+                const res = await fetch('/api/estado');
+                const data = await res.json();
+                if (data.timeline) {
+                    const countEl = document.getElementById('timelineCount');
+                    if (countEl) countEl.textContent = data.timeline.horas.length + ' periodos';
+                }
+            } catch (e) { }
+        }
+    </script>
+
+</body>
+
+</html>

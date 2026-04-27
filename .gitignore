@@ -1,0 +1,27 @@
+# Entorno virtual
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Secretos — NUNCA al repositorio
+.env
+
+# Logs y reportes generados
+logs/*.log
+reports/*.md
+reports/historial/
+
+# VS Code personal
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+
+# Docker
+docker/*/data/
+
+# Python
+*.egg-info/
+dist/
+build/
+.pytest_cache/

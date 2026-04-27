@@ -1,0 +1,92 @@
+# docker-compose.yml
+# ============================================================
+# Sistema de Defensa Web con Agentes de IA
+# Versión: 1.0 · Fase 1
+# ============================================================
+
+# ---------- RED INTERNA DEL PROYECTO ----------
+networks:
+  defense-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+
+# ---------- VOLÚMENES COMPARTIDOS ----------
+volumes:
+  dvwa-logs:
+    driver: local
+  mysql-data:
+    driver: local
+
+# ============================================================
+# SERVICIOS
+# ============================================================
+services:
+
+  # ----------------------------------------------------------
+  # SERVICIO 1: Base de datos para DVWA
+  # ----------------------------------------------------------
+  dvwa-db:
+    image: mysql:8.0
+    container_name: dvwa-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: dvwa_root_pass
+      MYSQL_DATABASE: dvwa
+      MYSQL_USER: dvwa_user
+      MYSQL_PASSWORD: dvwa_pass
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      defense-net:
+        ipv4_address: 172.20.0.10
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------
+  # SERVICIO 2: DVWA - Aplicación Web Vulnerable
+  # ----------------------------------------------------------
+  dvwa:
+    image: vulnerables/web-dvwa:latest
+    container_name: dvwa-app
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      - DB_SERVER=dvwa-db
+      - DB_DATABASE=dvwa
+      - DB_USER=dvwa_user
+      - DB_PASSWORD=dvwa_pass
+    volumes:
+      - dvwa-logs:/var/log/apache2
+    depends_on:
+      dvwa-db:
+        condition: service_healthy
+    networks:
+      defense-net:
+        ipv4_address: 172.20.0.20
+
+  # ----------------------------------------------------------
+  # SERVICIO 3: Motor de IA (Python)
+  # ----------------------------------------------------------
+  ai-engine:
+    image: python:3.11-slim
+    container_name: ai-engine
+    restart: "no"
+    working_dir: /app
+    volumes:
+      - .:/app
+      - dvwa-logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LOG_PATH=/app/logs/access.log
+    networks:
+      defense-net:
+        ipv4_address: 172.20.0.30
+    command: tail -f /dev/null
+    depends_on:
+      - dvwa
