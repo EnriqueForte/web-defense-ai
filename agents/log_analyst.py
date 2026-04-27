@@ -15,7 +15,7 @@ from pathlib import Path
 
 # Número máximo de líneas a analizar por ejecución.
 # Evita enviar logs enormes al LLM (límite de tokens).
-MAX_LINEAS = 50
+MAX_LINEAS = 30
 
 # Patrones de ataque conocidos para pre-filtrar el log
 # antes de enviarlo al LLM (ahorra tokens y tiempo).

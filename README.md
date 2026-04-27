@@ -16,6 +16,16 @@ Monitoriza en tiempo real los logs de Apache de una aplicación web vulnerable (
 
 ---
 
+## 📸 Screenshots
+
+![Dashboard](screenshots/screenshot-1-dashboard.png)
+![Agentes IA](screenshots/screenshot-2-architecture.png)
+![Reporte](screenshots/screenshot-3-report.png)
+![Telegram](screenshots/screenshot-4-telegram.png)
+![Timeline](screenshots/screenshot-5-timeline.png)
+
+---
+
 ## 🏗️ Arquitectura
 
 ```
