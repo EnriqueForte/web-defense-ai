@@ -18,14 +18,44 @@ Monitoriza en tiempo real los logs de Apache de una aplicación web vulnerable (
 
 ## 📸 Screenshots
 
+### 🖥️ Dashboard Principal
+> Vista general del sistema con métricas en tiempo real, tabla de amenazas clasificadas por severidad y log de actividad.
+
 ![Dashboard](screenshots/screenshot-1-dashboard.png)
-![Dashboard2](screenshots/screenshot-1a-dashboard.png)
-![Agentes IA](screenshots/screenshot-2-architecture.png)
-![Reporte](screenshots/screenshot-3-report.png)
-![Telegram](screenshots/screenshot-4-telegram.png)
-![Telegram](screenshots/screenshot-4a-telegram.png)
-![Timeline](screenshots/screenshot-5-timeline.png)
-![Timeline](screenshots/screenshot-5a-timeline.png)
+
+![Dashboard con Command Injection detectado](screenshots/screenshot-1a-dashboard.png)
+
+---
+
+### 🏗️ Arquitectura del Sistema
+> Flujo completo desde el atacante hasta las notificaciones, pasando por los 3 agentes de IA.
+
+![Arquitectura](screenshots/screenshot-2-architecture.png)
+
+---
+
+### 📊 Timeline de Ataques
+> Distribución temporal de ataques por tipo: SQLi, XSS, Path Traversal, Fuerza Bruta y Command Injection.
+
+![Timeline de ataques por hora](screenshots/screenshot-5-timeline.png)
+
+![Timeline con múltiples categorías activas](screenshots/screenshot-5a-timeline.png)
+
+---
+
+### 📄 Reporte Ejecutivo
+> Reporte generado automáticamente por el Agente 3 con tabla de amenazas, recomendaciones y acciones inmediatas.
+
+![Reporte de seguridad renderizado](screenshots/screenshot-3-report.png)
+
+---
+
+### 🔔 Notificaciones en Tiempo Real
+> Alertas automáticas enviadas por Telegram cuando se detectan amenazas críticas o altas.
+
+![Alerta Telegram](screenshots/screenshot-4-telegram.png)
+
+![Alerta Telegram con detalle de ataques](screenshots/screenshot-4a-telegram.png)
 
 ---
 
