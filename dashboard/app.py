@@ -86,9 +86,19 @@ def parsear_amenazas(reporte: str) -> list[dict]:
             ip_valida = bool(re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', ip_raw.strip('`')))
             ip_final  = ip_raw.strip('`') if ip_valida else (ips_log[0] if ips_log else "-")
 
+            # Normalizar severidad con encoding roto
+            severidad_raw = idx("severidad")
+            severidad_normalizada = (severidad_raw
+                .replace("CRÃTICA", "CRÍTICA")
+                .replace("CRÃ\x8dTICA", "CRÍTICA")
+                .replace("CR\u00c3\u008dTICA", "CRÍTICA")
+                .upper()
+                .strip()
+            )
+
             amenazas.append({
                 "numero"   : idx("linea", "número", "numero", "#"),
-                "severidad": idx("severidad"),
+                "severidad": severidad_normalizada,
                 "tipo"     : idx("tipo"),
                 "estado"   : idx("estado"),
                 "ip"       : ip_final,
@@ -129,64 +139,58 @@ def extraer_ips_del_log() -> list[str]:
 
 
 def obtener_timeline_ataques() -> dict:
-    """
-    Analiza el log y agrupa los ataques sospechosos por hora.
-    Retorna datos para el grafico de timeline.
-    """
     import re
     from collections import defaultdict
 
     ruta = Path(LOG_PATH)
     if not ruta.exists():
-        return {"horas": [], "counts": [], "tipos": {}}
+        return {"horas": [], "counts": [], "sqli": [],
+                "xss": [], "path": [], "brute": [], "cmd": []}
 
     lineas = ruta.read_text(encoding="utf-8", errors="replace").splitlines()
 
-    # Patrones de ataque para filtrar
-    patrones = [
-        "union", "select", "%27", "or+1", "or '1'",
-        "<script", "%3cscript", "alert(",
-        "../", "%2e%2e", "etc/passwd",
-        "onerror", "onload"
-    ]
+    patrones_sqli  = ["union", "select", "%27", "or+1", "or+%27"]
+    patrones_xss   = ["<script", "%3cscript", "alert(", "%3calert", "onerror"]
+    patrones_path  = ["../", "%2e%2e", "etc/passwd", "etc%2fpasswd"]
+    patrones_brute = ["/vulnerabilities/brute/", "/brute/?username"]
+    patrones_cmd   = ["/vulnerabilities/exec/", "%3b", "%7c", "%26%26"]
 
-    ataques_por_hora  = defaultdict(int)
-    tipos_por_hora    = defaultdict(lambda: defaultdict(int))
+    ataques = defaultdict(lambda: {
+        "sqli": 0, "xss": 0, "path": 0, "brute": 0, "cmd": 0
+    })
 
     for linea in lineas:
-        linea_lower = linea.lower()
-        es_ataque   = any(p in linea_lower for p in patrones)
-        if not es_ataque:
+        ll = linea.lower()
+        es_sqli  = any(p in ll for p in patrones_sqli)
+        es_xss   = any(p in ll for p in patrones_xss)
+        es_path  = any(p in ll for p in patrones_path)
+        es_brute = any(p in ll for p in patrones_brute)
+        es_cmd   = any(p in ll for p in patrones_cmd)
+
+        if not any([es_sqli, es_xss, es_path, es_brute, es_cmd]):
             continue
 
-        # Extraer hora del timestamp Apache: [26/Apr/2026:20:43:28]
         match = re.search(r'\[(\d{2}/\w+/\d{4}):(\d{2}):', linea)
         if not match:
             continue
 
-        fecha = match.group(1)  # 26/Apr/2026
-        hora  = match.group(2)  # 20
-        clave = f"{fecha} {hora}h"
+        clave = f"{match.group(1)} {match.group(2)}h"
+        if es_sqli:  ataques[clave]["sqli"]  += 1
+        if es_xss:   ataques[clave]["xss"]   += 1
+        if es_path:  ataques[clave]["path"]  += 1
+        if es_brute: ataques[clave]["brute"] += 1
+        if es_cmd:   ataques[clave]["cmd"]   += 1
 
-        ataques_por_hora[clave] += 1
-
-        # Clasificar tipo
-        if any(p in linea_lower for p in ["union", "select", "%27", "or+1"]):
-            tipos_por_hora[clave]["SQLi"] += 1
-        if any(p in linea_lower for p in ["<script", "%3cscript", "alert("]):
-            tipos_por_hora[clave]["XSS"] += 1
-        if any(p in linea_lower for p in ["../", "%2e%2e", "etc/passwd"]):
-            tipos_por_hora[clave]["Path Traversal"] += 1
-
-    # Ordenar por clave temporal
-    horas_ordenadas = sorted(ataques_por_hora.keys())
+    horas = sorted(ataques.keys())
 
     return {
-        "horas" : horas_ordenadas,
-        "counts": [ataques_por_hora[h] for h in horas_ordenadas],
-        "sqli"  : [tipos_por_hora[h].get("SQLi", 0) for h in horas_ordenadas],
-        "xss"   : [tipos_por_hora[h].get("XSS", 0) for h in horas_ordenadas],
-        "path"  : [tipos_por_hora[h].get("Path Traversal", 0) for h in horas_ordenadas],
+        "horas" : horas,
+        "counts": [sum(ataques[h].values()) for h in horas],
+        "sqli"  : [ataques[h]["sqli"]  for h in horas],
+        "xss"   : [ataques[h]["xss"]   for h in horas],
+        "path"  : [ataques[h]["path"]  for h in horas],
+        "brute" : [ataques[h]["brute"] for h in horas],
+        "cmd"   : [ataques[h]["cmd"]   for h in horas],
     }
 
 
@@ -219,9 +223,11 @@ def obtener_historial() -> list[dict]:
     if not HISTORIAL.exists():
         return []
 
-    archivos = sorted(HISTORIAL.glob("*.md"), reverse=True)[:10]
+    # Mostrar solo los 5 más recientes en el dashboard
+    # El resto se conserva en disco en reports/historial/
+    archivos = sorted(HISTORIAL.glob("*.md"), reverse=True)[:5]
+    
     historial = []
-
     for archivo in archivos:
         contenido = archivo.read_text(encoding="utf-8", errors="replace")
         amenazas  = parsear_amenazas(contenido)
@@ -242,6 +248,22 @@ def obtener_log_reciente() -> list[str]:
         return ["Log no disponible"]
     lineas = ruta.read_text(encoding="utf-8", errors="replace").splitlines()
     return lineas[-8:] if lineas else []
+
+
+def limpiar_historial_antiguo(max_reportes: int = 20):
+    """
+    Mantiene solo los N reportes más recientes en disco.
+    El resto se elimina automáticamente.
+    """
+    if not HISTORIAL.exists():
+        return
+
+    archivos = sorted(HISTORIAL.glob("*.md"), reverse=True)
+
+    if len(archivos) > max_reportes:
+        for archivo_antiguo in archivos[max_reportes:]:
+            archivo_antiguo.unlink()
+            print(f"   Reporte antiguo eliminado: {archivo_antiguo.name}")
 
 
 # ============================================================
@@ -306,7 +328,7 @@ def api_estado():
         "amenazas" : amenazas,
         "historial": obtener_historial(),
         "log"      : obtener_log_reciente(),
-        "ips_log"  : ips_log[:5],  # Top 5 IPs más activas,
+        "ips_log"  : extraer_ips_del_log()[:5],
         "timeline" : obtener_timeline_ataques(),
         "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
     })
@@ -339,12 +361,13 @@ def api_sincronizar():
             historial_dir.mkdir(exist_ok=True)
             copia = historial_dir / f"reporte_{timestamp}.md"
             copia.write_text(reporte, encoding="utf-8")
+            limpiar_historial_antiguo(max_reportes=50)
 
             # Notificar amenazas críticas/altas
             alertas = [
                 f"| {a['numero']} | {a['severidad']} | {a['tipo']} | {a['estado']} | {a['ip']} |"
                 for a in amenazas
-                if "CRITICA" in a["severidad"].upper() or "ALTA" in a["severidad"].upper()
+                if any(s in a["severidad"].upper() for s in ["CRITICA", "CRÍTICA", "ALTA", "MEDIA"])
             ]
             if alertas:
                 notificar_alerta_critica(alertas, ciclo=1)

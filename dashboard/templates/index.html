@@ -234,7 +234,7 @@
                 const terminal = document.getElementById('logTerminal');
                 if (terminal && data.log) {
                     terminal.innerHTML = data.log.map(linea => {
-                        const esAlerta = /sqli|union|passwd|script|%3c|traversal/i.test(linea);
+                        const esAlerta = /sqli|union|passwd|script|%3c|traversal|brute|exec|whoami|%3b|%7c/i.test(linea);
                         const prompt = esAlerta ? '!' : '$';
                         const cls = esAlerta ? 'log-alert' : '';
                         const promptCls = esAlerta ? 'log-prompt-alert' : 'log-prompt';
@@ -353,7 +353,9 @@
         "counts" : {{ timeline.counts | tojson }},
         "sqli"   : {{ timeline.sqli   | tojson }},
         "xss"    : {{ timeline.xss    | tojson }},
-        "path"   : {{ timeline.path   | tojson }}
+        "path"   : {{ timeline.path   | tojson }},
+        "brute"  : {{ timeline.brute  | tojson }},
+        "cmd"    : {{ timeline.cmd    | tojson }}
     }
     </script>
 
@@ -399,6 +401,20 @@
                             borderColor: 'rgba(255,59,92,1)',
                             borderWidth: 1,
                         },
+                        {
+                            label: 'Fuerza Bruta',
+                            data: data.brute,
+                            backgroundColor: 'rgba(0,255,136,0.7)',
+                            borderColor: 'rgba(0,255,136,1)',
+                            borderWidth: 1,
+                        },
+                        {
+                            label: 'Cmd Injection',
+                            data: data.cmd,
+                            backgroundColor: 'rgba(200,100,255,0.7)',
+                            borderColor: 'rgba(200,100,255,1)',
+                            borderWidth: 1,
+                        },
                     ]
                 },
                 options: {
@@ -436,17 +452,23 @@
 
         // Leyenda custom
         const legendHtml = `
-    <div style="display:flex;gap:16px;margin-top:8px;padding:0 4px">
-      <span style="display:flex;align-items:center;gap:5px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2a3f5a">
-        <span style="width:10px;height:10px;background:rgba(255,170,0,0.7);display:inline-block"></span>SQLi
-      </span>
-      <span style="display:flex;align-items:center;gap:5px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2a3f5a">
-        <span style="width:10px;height:10px;background:rgba(77,159,255,0.7);display:inline-block"></span>XSS
-      </span>
-      <span style="display:flex;align-items:center;gap:5px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2a3f5a">
-        <span style="width:10px;height:10px;background:rgba(255,59,92,0.7);display:inline-block"></span>Path Traversal
-      </span>
-    </div>`;
+            <div style="display:flex;gap:16px;margin-top:8px;padding:0 4px;flex-wrap:wrap">
+                <span style="display:flex;align-items:center;gap:5px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2a3f5a">
+                <span style="width:10px;height:10px;background:rgba(255,170,0,0.7);display:inline-block"></span>SQLi
+                </span>
+                <span style="display:flex;align-items:center;gap:5px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2a3f5a">
+                <span style="width:10px;height:10px;background:rgba(77,159,255,0.7);display:inline-block"></span>XSS
+                </span>
+                <span style="display:flex;align-items:center;gap:5px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2a3f5a">
+                <span style="width:10px;height:10px;background:rgba(255,59,92,0.7);display:inline-block"></span>Path Traversal
+                </span>
+                <span style="display:flex;align-items:center;gap:5px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2a3f5a">
+                <span style="width:10px;height:10px;background:rgba(0,255,136,0.7);display:inline-block"></span>Fuerza Bruta
+                </span>
+                <span style="display:flex;align-items:center;gap:5px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2a3f5a">
+                <span style="width:10px;height:10px;background:rgba(200,100,255,0.7);display:inline-block"></span>Cmd Injection
+                </span>
+            </div>`;
 
         const wrapper = document.querySelector('.timeline-wrapper');
         if (wrapper) wrapper.insertAdjacentHTML('beforeend', legendHtml);

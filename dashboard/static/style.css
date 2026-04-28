@@ -314,6 +314,8 @@ body {
 .table-wrapper {
     border: 1px solid var(--border);
     overflow-x: auto;
+    max-height: 320px;
+    overflow-y: auto;
 }
 
 .threat-table {

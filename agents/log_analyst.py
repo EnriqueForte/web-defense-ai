@@ -22,15 +22,22 @@ MAX_LINEAS = 30
 PATRONES_SOSPECHOSOS = [
     # SQL Injection
     "union", "select", "insert", "drop", "delete", "update",
-    "or+1=1", "or '1'='1", "%27", "1=1", "--", "/*", "*/",
+    "or+1=1", "or+%271", "%27", "1=1", "--", "/*", "*/",
     # XSS
     "<script", "alert(", "onerror=", "onload=", "javascript:",
     "<img", "<svg", "eval(", "document.cookie",
+    "%3cscript", "%3c/script",
     # Path Traversal
     "../", "..%2f", "%2e%2e", "etc/passwd", "etc/shadow",
     "windows/system32",
-    # Fuerza Bruta (se detecta por frecuencia, no por patrón)
-    # Se maneja en la función analizar_fuerza_bruta()
+    # Command Injection
+    "/exec/", "vulnerabilities/exec",
+    ";ls", ";cat", ";whoami", ";id", ";pwd",
+    "&&whoami", "&&ls", "|whoami", "|ls",
+    "%3bls", "%3bcat", "%3bwhoami",
+    "%26%26", "%7ccat", "%7cls",
+    # Fuerza Bruta
+    "/brute/", "vulnerabilities/brute",
 ]
 
 
@@ -176,52 +183,61 @@ def analizar_fuerza_bruta(lineas: list[str],
 
 def preparar_log_para_agente(ruta_log: str) -> dict:
     """
-    Función principal que orquesta la lectura y pre-procesamiento
-    del log para pasarlo al agente de IA.
-    
-    Args:
-        ruta_log: Ruta al archivo access.log
-    
-    Returns:
-        Diccionario con toda la información procesada lista para el agente
+    Lee y pre-procesa el log priorizando los ataques más críticos.
+    Garantiza que Command Injection y Path Traversal siempre
+    estén incluidos aunque haya muchas líneas de fuerza bruta.
     """
     print(f"📂 Leyendo log desde: {ruta_log}")
-    
-    # 1. Leer el log
-    lineas = leer_log(ruta_log)
+
+    lineas = leer_log(ruta_log, max_lineas=100)
     print(f"   → {len(lineas)} líneas leídas")
-    
+
     if not lineas:
         return {"error": "Log vacío o no encontrado"}
-    
-    # 2. Pre-filtrar líneas sospechosas
-    filtrado = pre_filtrar_lineas(lineas)
-    print(f"   → {len(filtrado['sospechosas'])} líneas sospechosas "
-          f"({filtrado['porcentaje_sospechoso']}%)")
-    
-    # 3. Detectar fuerza bruta
+
+    # Clasificar líneas por prioridad
+    criticas   = []  # Command Injection, Path Traversal
+    altas      = []  # SQLi, XSS
+    otras      = []  # Fuerza Bruta y resto
+
+    for linea in lineas:
+        ll = linea.lower()
+
+        es_cmd  = any(p in ll for p in ["/exec/", "%3b", "%7c", "%26%26"])
+        es_path = any(p in ll for p in ["../", "%2e%2e", "etc/passwd"])
+        es_sqli = any(p in ll for p in ["union", "select", "%27", "or+1"])
+        es_xss  = any(p in ll for p in ["<script", "%3cscript", "alert("])
+        es_fb   = any(p in ll for p in ["/brute/", "vulnerabilities/brute"])
+
+        if es_cmd or es_path:
+            criticas.append(linea)
+        elif es_sqli or es_xss:
+            altas.append(linea)
+        elif es_fb:
+            otras.append(linea)
+
+    # Construir log balanceado para el agente:
+    # - Todas las líneas críticas (Command Injection + Path Traversal)
+    # - Hasta 5 líneas de SQLi/XSS
+    # - Hasta 5 líneas de Fuerza Bruta (muestra del patrón)
+    log_balanceado = criticas + altas[:5] + otras[:5]
+
+    print(f"   → {len(criticas)} líneas críticas (Cmd/Path)")
+    print(f"   → {len(altas[:5])} líneas altas (SQLi/XSS)")
+    print(f"   → {len(otras[:5])} líneas otras (Fuerza Bruta)")
+
     fuerza_bruta = analizar_fuerza_bruta(lineas)
-    if fuerza_bruta:
-        print(f"   → ⚠️  {len(fuerza_bruta)} líneas de posible fuerza bruta")
-    
-    # 4. Combinar todas las líneas sospechosas sin duplicados
-    todas_sospechosas = list(set(
-        filtrado["sospechosas"] + fuerza_bruta
-    ))
-    
-    # 5. Preparar el contenido final para el agente
-    # Si hay líneas sospechosas, mandamos solo esas (más eficiente)
-    # Si no hay, mandamos todas para que el agente decida
-    contenido_para_agente = "\n".join(
-        todas_sospechosas if todas_sospechosas else lineas
-    )
-    
+
+    contenido = "\n".join(log_balanceado) if log_balanceado else "\n".join(lineas[:30])
+
+    filtrado = pre_filtrar_lineas(lineas)
+
     return {
-        "contenido": contenido_para_agente,
+        "contenido": contenido,
         "estadisticas": {
-            "total_lineas": filtrado["total"],
-            "lineas_sospechosas": len(todas_sospechosas),
-            "porcentaje_sospechoso": filtrado["porcentaje_sospechoso"],
+            "total_lineas"          : filtrado["total"],
+            "lineas_sospechosas"    : len(filtrado["sospechosas"]),
+            "porcentaje_sospechoso" : filtrado["porcentaje_sospechoso"],
             "fuerza_bruta_detectada": len(fuerza_bruta) > 0,
         },
         "timestamp_analisis": datetime.now().isoformat(),
