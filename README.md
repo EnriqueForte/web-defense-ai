@@ -48,6 +48,8 @@ Monitoriza en tiempo real los logs de Apache de una aplicación web vulnerable (
 
 ![Reporte de seguridad renderizado](screenshots/screenshot-3-report.png)
 
+![Reporte de seguridad renderizado con otros ataques](screenshots/screenshot-3a-report.png)
+
 ---
 
 ### 🔔 Notificaciones en Tiempo Real
